@@ -1,0 +1,4 @@
+n,topology,E,exec_ms,memory_kb,tracking_pct,convergence_steps
+100,Flat (VPP),24,4.655,3.0,0.16,15
+200,Flat (VPP),24,4.671,3.0,0.16,15
+500,Flat (VPP),24,4.656,3.0,0.16,15
