@@ -1,6 +1,6 @@
 # LLM Experiments — Qwen3.5-0.8B Agents
 
-LLM-driven reproduction of the Credit Calculus VPP experiments. Each agent is a **Qwen3.5-0.8B** instance (via vLLM) that publishes a 24-hour JSON calendar; optional **Algorithm 1 guardrails** project raw LLM output onto the cooperative manifold.
+LLM-driven reproduction of the Credit Calculus VPP experiments. Each agent is a **Qwen** instance (via vLLM; default target Qwen3.5-0.8B) that publishes a 24-hour JSON calendar; optional **Algorithm 1 guardrails** project raw LLM output onto the cooperative manifold.
 
 ## Setup
 
@@ -40,6 +40,57 @@ python llm_exp/run_experiments.py --quick --n 10 25 50 100 --rounds 8 --output l
 | `baseline` | Numeric fair-share PGA ([`credit_calculus/swarm.py`](../credit_calculus/swarm.py)) |
 | `llm_raw` | Qwen proposes calendar; no guardrail |
 | `llm_guarded` | Qwen → Algorithm 1 guardrail ([`guardrail_apply.py`](../credit_calculus/guardrail_apply.py)) |
+
+## Results summary
+
+Verified **2025-06-25** with:
+
+```bash
+python llm_exp/run_experiments.py --quick --n 10 25 50 100 --rounds 8 --output llm_exp/results
+```
+
+**Run settings:** quick mode (δ=60 min → E=24), 8 planning rounds per condition, all agents are LLMs for `llm_raw` / `llm_guarded`. vLLM auto-detected model **`qwen3.5-9b-vllm`** (9B served locally; not Qwen3.5-0.8B). Total wall time ≈ **13.4 hours**.
+
+### Tracking error (final L₂ %, lower is better)
+
+| n | baseline (PGA) | llm_raw | llm_guarded |
+|--:|---------------:|--------:|------------:|
+| 10 | **3.19** | 100.0 | 100.0 |
+| 25 | **3.19** | 100.0 | 100.0 |
+| 50 | **3.19** | 87.45 | 93.14 |
+| 100 | **3.19** | 88.22 | 91.67 |
+
+The numeric **baseline** converges to ~3.2% tracking at every swarm size (same cooperative PGA as [`credit_calculus/`](../credit_calculus/)). **LLM conditions** stay near 87–100% error: agents mostly fail to produce valid JSON and fall back to idle calendars, so the swarm never coordinates on the grid attractor.
+
+### JSON parse success & guardrail
+
+| n | parse success (llm_raw) | parse success (llm_guarded) | guardrail modified |
+|--:|------------------------:|----------------------------:|-------------------:|
+| 10 | 0% | 0% | 0% |
+| 25 | 0% | 0% | 0% |
+| 50 | 4% | 1.3% | 1% |
+| 100 | 5.1% | 4.0% | 4% |
+
+Parse failures dominate: at n=10–25 the model returned **no** valid event-list JSON in 8×n calls. At n=50–100 a small fraction parsed (~1–5%), but schedules were still far from cooperative. Guardrails rarely fired because there was little valid LLM output to project.
+
+### Latency & scalability
+
+| n | mean LLM latency (ms/call) | wall time per n block (s) |
+|--:|---------------------------:|--------------------------:|
+| 10 | 8146 | 2608 (~44 min) |
+| 25 | 8143 | 6516 (~109 min) |
+| 50 | 8141 | 13037 (~217 min) |
+| 100 | 8134 | 26070 (~434 min) |
+
+Per-agent inference is **~8.1 s** (flat in n). Wall time scales **~linearly with n** because agents are queried sequentially (8 rounds × n agents × 2 LLM conditions per n block). Guardrail-only latency remains ~5 ms/agent (see numeric Exp 1 in root README).
+
+### Takeaways
+
+1. **Cooperative guardrails work in principle** (numeric baseline + Algorithm 1 in `credit_calculus/`) but **cannot rescue** swarms when LLMs do not emit parseable calendars.
+2. **Prompt / parser / model size** need improvement before LLM agents match PGA (~3% vs ~90%+ tracking).
+3. **Throughput:** parallel vLLM batching or a smaller/finetuned model would be needed for large-n sweeps at practical wall times.
+
+Full numbers: [`results/table_llm_summary.csv`](results/table_llm_summary.csv). Figures: `results/fig_llm_*.png`.
 
 ## Outputs
 
