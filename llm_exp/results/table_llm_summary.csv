@@ -1,0 +1,13 @@
+n,condition,model,tracking_pct,iterations,converged,parse_success_rate,guardrail_mod_rate,mean_llm_ms,wall_time_s
+10,baseline,qwen3.5-9b-vllm,3.19,8,False,1.0,0.0,0.0,2607.9
+10,llm_raw,qwen3.5-9b-vllm,100.0,8,False,0.0,0.0,8146.11,2607.9
+10,llm_guarded,qwen3.5-9b-vllm,100.0,8,False,0.0,0.0,8150.48,2607.9
+25,baseline,qwen3.5-9b-vllm,3.19,8,False,1.0,0.0,0.0,6515.7
+25,llm_raw,qwen3.5-9b-vllm,100.0,8,False,0.0,0.0,8143.38,6515.7
+25,llm_guarded,qwen3.5-9b-vllm,100.0,8,False,0.0,0.0,8142.65,6515.7
+50,baseline,qwen3.5-9b-vllm,3.19,8,False,1.0,0.0,0.0,13037.3
+50,llm_raw,qwen3.5-9b-vllm,87.45,8,False,0.04,0.0,8140.32,13037.3
+50,llm_guarded,qwen3.5-9b-vllm,93.14,8,False,0.013,0.01,8143.61,13037.3
+100,baseline,qwen3.5-9b-vllm,3.19,8,False,1.0,0.0,0.0,26069.6
+100,llm_raw,qwen3.5-9b-vllm,88.22,8,False,0.051,0.0,8126.66,26069.6
+100,llm_guarded,qwen3.5-9b-vllm,91.67,8,False,0.04,0.04,8140.76,26069.6

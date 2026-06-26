@@ -7,3 +7,12 @@ dist/
 build/
 .DS_Store
 results_full/
+results_quick/
+results_quick2/
+.tools/
+nonMarkovianBlameCalculus.pdf
+
+# LLM experiment outputs (keep summary CSV + figures; skip large logs)
+llm_exp/results/logs/
+llm_exp/results/*.jsonl
+llm_exp/results/run.log

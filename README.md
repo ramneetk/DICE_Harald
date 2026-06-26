@@ -134,10 +134,21 @@ run_experiments.py
 - **Section 7**: L₂ deviation penalty and Markovian vs non-Markovian payout
 - **Section 10**: All eight experiment scenarios (scalability, tracking, Byzantine, schemers, churn, jitter, sensitivity)
 
+## LLM agent experiments
+
+Qwen agents via vLLM (baseline vs raw LLM vs guardrailed LLM) live in [`llm_exp/`](llm_exp/README.md).
+
+```bash
+pip install -r llm_exp/requirements.txt
+python llm_exp/run_experiments.py --mock --quick --output llm_exp/results
+```
+
+Scalability results (n=10–100, qwen3.5-9b-vllm): see `llm_exp/results/table_llm_summary.csv`.
+
 ## Run tests
 
 ```bash
-python -m pytest tests/ -q
+python -m pytest tests/ llm_exp/tests/ -q
 ```
 
 ## Notes
