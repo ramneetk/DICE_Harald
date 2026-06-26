@@ -9,6 +9,8 @@ build/
 results_full/
 results_quick/
 results_quick2/
+results_v2/
+results_v3/
 .tools/
 nonMarkovianBlameCalculus.pdf
 
@@ -16,3 +18,7 @@ nonMarkovianBlameCalculus.pdf
 llm_exp/results/logs/
 llm_exp/results/*.jsonl
 llm_exp/results/run.log
+llm_exp/results_steering/logs/
+llm_exp/results_steering/run.log
+llm_exp/results_steering_smoke/logs/
+llm_exp/results_steering_smoke/run.log

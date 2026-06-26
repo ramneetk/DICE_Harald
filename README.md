@@ -120,6 +120,7 @@ credit_calculus/
   credit.py       # Counterfactual / Shapley planning credit
   guardrail.py    # Algorithm 1 — ascent projection guardrail
   guardrail_apply.py  # Apply guardrail to agent calendars (Sections 8–9)
+  guardrail_extended.py  # attractor_seek, hybrid_band (steering experiments)
   swarm.py        # Swarm simulator + functional PGA
   adversarial.py  # Byzantine + non-Markovian slashing
   plots.py        # Figure generation
@@ -136,19 +137,157 @@ run_experiments.py
 
 ## LLM agent experiments
 
-Qwen agents via vLLM (baseline vs raw LLM vs guardrailed LLM) live in [`llm_exp/`](llm_exp/README.md).
+There are two LLM experiment tracks in [`llm_exp/`](llm_exp/README.md):
+
+| Track | Script | What it tests |
+|-------|--------|---------------|
+| **Original scalability** | `llm_exp/run_experiments.py` | Baseline PGA vs raw LLM vs guardrailed LLM at n=10–100 |
+| **Steering (safety bubble)** | `llm_exp/run_steering_experiments.py` | Persona, guardrail mode, and credit feedback to push agents toward mission success |
+
+Install LLM extras once:
 
 ```bash
 pip install -r llm_exp/requirements.txt
-python llm_exp/run_experiments.py --mock --quick --output llm_exp/results
 ```
 
-Scalability results (n=10–100, qwen3.5-9b-vllm): see `llm_exp/results/table_llm_summary.csv`.
+### Original LLM conditions (quick start)
+
+```bash
+# Offline — no GPU, returns a fixed cooperative schedule (~seconds)
+python llm_exp/run_experiments.py --mock --quick --output llm_exp/results
+
+# Live — requires vLLM (see below)
+python llm_exp/run_experiments.py --quick --n 10 25 --rounds 8 --output llm_exp/results
+```
+
+Scalability results: `llm_exp/results/table_llm_summary.csv`. Details: [`llm_exp/README.md`](llm_exp/README.md).
+
+---
+
+### Steering experiments — pushing agents outside the “safety bubble”
+
+**In plain terms:** Each simulated EV battery is an LLM that publishes a 24-hour charging/discharging schedule (JSON). Out of the box, LLMs tend to be **conservative** — they idle, parse poorly, or under-contribute — while the numeric simulator (PGA) tracks the grid target to ~**3%** error. The steering suite asks: *can we change the agent’s **persona**, add smarter **guardrails**, and show **credit feedback** from prior rounds so LLM swarms coordinate better?*
+
+This is **task-level** risk appetite (grid tracking vs battery comfort) in a **simulated** VPP — not bypassing chat safety filters.
+
+#### Three knobs you can tune
+
+| Knob | Options | Effect |
+|------|---------|--------|
+| **Persona** | `conservative`, `cooperative`, `aggressive`, `mission_critical`, `byzantine` | System prompt that sets risk appetite (`llm_exp/personas.py`) |
+| **Guardrail mode** | `none`, `floor_only`, `attractor_seek`, `hybrid_band` | How Algorithm 1 projects bad schedules (`credit_calculus/guardrail_extended.py`) |
+| **Feedback mode** | `none`, `credit_only`, `gradient_only`, `credit_gradient`, `full` | What prior-round info goes back into the user prompt (`llm_exp/prompts.py`) |
+
+- **`floor_only`** — current paper guardrail: enforce a cooperative *minimum* (pull under-contributors up).
+- **`attractor_seek`** — also push toward the fair-share ideal, not just the floor.
+- **`hybrid_band`** — floor *and* ceiling: bounded over-commitment during grid shocks.
+- **Feedback** — Shapley credit, gradient hints (“use DischargeV2G at 17h”), and non-Markovian slashing warnings.
+
+#### The R0–R6 experiment matrix
+
+One command runs all seven preset configurations (8 planning rounds each):
+
+| Run | Persona | Guardrail | Feedback | Swarm n | Role |
+|-----|---------|-----------|----------|--------:|------|
+| **R0** | cooperative | none | none | 10 | Numeric PGA baseline (no LLM) |
+| **R1** | cooperative | floor_only | none | 10 | Original guarded LLM control |
+| **R2** | aggressive | floor_only | none | 10 | Persona-only steering |
+| **R3** | aggressive | attractor_seek | gradient | 10 | Persona + attractor guardrail + hints |
+| **R4** | mission_critical | hybrid_band | credit+gradient | 10 | High-risk persona + band guardrail |
+| **R5** | aggressive | attractor_seek | full | 10 | Full steering stack |
+| **R6** | aggressive | attractor_seek | full | 25 | Scale-up of R5 |
+
+**Success target (v1):** any LLM run with **< 50%** L₂ tracking at n=10 (vs ~227% in early guarded runs). Stretch goal: approach numeric **~3%**.
+
+#### How to run (step by step)
+
+**1. Offline smoke test** — validates the pipeline in a few seconds, no GPU:
+
+```bash
+python llm_exp/run_steering_experiments.py \
+  --mock --quick --runs all \
+  --output llm_exp/results_steering_smoke
+```
+
+Uses a mock LLM that always returns the same cooperative JSON. Good for CI and sanity checks; tracking numbers for LLM runs will look artificially high (~260%) because every agent emits the identical schedule.
+
+**2. Live Qwen** — needs a vLLM server:
+
+```bash
+# Terminal 1 — start server (once)
+chmod +x llm_exp/scripts/serve_qwen.sh
+llm_exp/scripts/serve_qwen.sh
+
+# Terminal 2 — full matrix (~1–2 hours at n=10–25, ~8 s per LLM call)
+python llm_exp/run_steering_experiments.py \
+  --quick --runs all \
+  --output llm_exp/results_steering
+```
+
+The runner auto-detects the model from `http://127.0.0.1:8000/v1/models` (e.g. `qwen3.5-9b-vllm`).
+
+**Run a subset** — comma-separated run IDs:
+
+```bash
+python llm_exp/run_steering_experiments.py --mock --quick --runs R0,R3,R5
+```
+
+**Long-running jobs in tmux** (survives disconnect):
+
+```bash
+tmux new-session -d -s steering_live \
+  "cd $(pwd) && source .venv/bin/activate && \
+   python llm_exp/run_steering_experiments.py --quick --runs all \
+   --output llm_exp/results_steering 2>&1 | tee llm_exp/results_steering/run.log"
+
+tmux attach -t steering_live    # watch progress
+# detach: Ctrl-b then d
+tail -f llm_exp/results_steering/run.log
+```
+
+#### Where to find results
+
+| Output | Location |
+|--------|----------|
+| Summary table | `llm_exp/results_steering/table_steering_summary.csv` |
+| Run log | `llm_exp/results_steering/run.log` |
+| Per-agent audit trail | `llm_exp/results_steering/logs/R{n}_n{size}.jsonl` |
+| Tracking by run | `fig_steering_summary.png` |
+| Persona comparison | `fig_persona_sweep.png` |
+| Guardrail mod rate vs error | `fig_guardrail_pareto.png` |
+| Feedback ablation | `fig_feedback_ablation.png` |
+
+**Key columns in the CSV:** `tracking_pct` (lower is better), `parse_success_rate`, `guardrail_mod_rate`, `converged`.
+
+#### Mock smoke results (reference)
+
+Offline run (`results_steering_smoke/`, mock LLM, quick mode):
+
+| Run | tracking_pct | guardrail_mod_rate |
+|-----|-------------:|-------------------:|
+| R0 (PGA baseline) | **3.19** | 0.0 |
+| R1–R5 (LLM) | ~267 | 0.54–1.0 |
+| R6 (n=25) | 257.76 | 0.69 |
+
+R0 confirms the numeric coordinator works; LLM rows reflect the mock’s identical schedule, not real Qwen behavior. Use **`results_steering/`** for live model numbers.
+
+#### Steering code layout
+
+```
+llm_exp/
+  personas.py                 # conservative → mission_critical prompts
+  prompts.py                  # user prompts + FeedbackContext blocks
+  agent.py                    # LLMAgent.plan() with persona + guardrail mode
+  steering_swarm.py           # SteeringSwarmSimulator + R0–R6 matrix
+  run_steering_experiments.py # matrix runner + plots
+credit_calculus/
+  guardrail_extended.py       # attractor_seek, hybrid_band modes
+```
 
 ## Run tests
 
 ```bash
-python -m pytest tests/ llm_exp/tests/ -q
+python -m pytest tests/ llm_exp/tests/ -q   # includes steering / persona / guardrail tests
 ```
 
 ## Notes

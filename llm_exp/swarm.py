@@ -123,6 +123,9 @@ class LLMSwarmSimulator(SwarmSimulator):
                 round_lat.append(result.llm_response.latency_ms)
                 prompt_tok += result.llm_response.prompt_tokens
                 comp_tok += result.llm_response.completion_tokens
+            raw_preview = ""
+            if result.llm_response and result.llm_response.text:
+                raw_preview = result.llm_response.text[:800]
             self._log({
                 "iteration": iteration,
                 "agent_id": i,
@@ -131,6 +134,7 @@ class LLMSwarmSimulator(SwarmSimulator):
                 "guardrail_modified": result.guardrail_modified,
                 "parse_error": result.parse_error,
                 "latency_ms": result.llm_response.latency_ms if result.llm_response else 0,
+                "raw_preview": raw_preview,
             })
 
         self.calendars = new_calendars

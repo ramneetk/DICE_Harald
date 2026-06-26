@@ -44,8 +44,8 @@ def test_build_user_prompt():
     agg = np.zeros(E)
     share = np.zeros(E)
     prompt = build_user_prompt(0, 0, target, agg, share, QUICK_CONFIG)
-    assert "agent_id" in prompt
-    assert "example_output" in prompt
+    assert "Agent 0" in prompt
+    assert "events" in prompt
 
 
 def test_calendar_roundtrip():
@@ -54,3 +54,30 @@ def test_calendar_roundtrip():
     back = calendar_to_events(cal.probs, QUICK_CONFIG)
     assert len(back) >= 1
     assert back[0]["action"] == "Idle"
+
+
+def test_parse_thinking_prefix():
+    text = (
+        "Thinking Process:\n\n1. Analyze grid...\n\n"
+        + json.dumps(FEW_SHOT_EXAMPLE)
+    )
+    result = parse_llm_calendar(text, QUICK_CONFIG)
+    assert result.success
+
+
+def test_parse_truncated_events():
+    text = '{"events": [{"start_hour": 0.0, "action": "Idle"}, {"start_hour": 17.0, "action": "DischargeV2G"'
+    result = parse_llm_calendar(text, QUICK_CONFIG)
+    assert result.success
+
+
+def test_parse_action_aliases():
+    payload = {
+        "events": [
+            {"start_hour": 0.0, "action": "discharge_v2g"},
+            {"start_hour": 12.0, "action": "chargefast"},
+        ]
+    }
+    result = parse_llm_calendar(json.dumps(payload), QUICK_CONFIG)
+    assert result.success
+

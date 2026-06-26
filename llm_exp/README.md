@@ -90,6 +90,26 @@ Per-agent inference is **~8.1 s** (flat in n). Wall time scales **~linearly with
 2. **Prompt / parser / model size** need improvement before LLM agents match PGA (~3% vs ~90%+ tracking).
 3. **Throughput:** parallel vLLM batching or a smaller/finetuned model would be needed for large-n sweeps at practical wall times.
 
+### Root cause (log analysis, 2025-06-26)
+
+Analysis of 3,029 JSONL records (`python llm_exp/scripts/analyze_logs.py`):
+
+| Failure mode | Share of failures |
+|--------------|------------------:|
+| `no JSON object found` | ~83% |
+| Truncated / malformed JSON | ~17% |
+
+Live probes showed **Qwen3.5-9B** replies with a long `Thinking Process:` preamble instead of JSON when `response_format` is off. With JSON mode enabled, the model often **echoed the full input payload** in JSON, causing truncation at 256 tokens.
+
+**Fixes applied** (see `parser.py`, `prompts.py`, `client.py`):
+
+1. **`response_format={"type": "json_object"}`** on vLLM calls (config: `use_json_mode=True`)
+2. **Compact user prompt** (~500 chars) asking for `{"events": [...]}` only
+3. **Parser hardening** — strip thinking blocks, salvage truncated `events`, action aliases
+4. **`temperature=0.0`**, **`max_tokens=384`**, **`raw_preview` in JSONL logs**
+
+Validation after fixes: **10/10** parse success on live probes; quick rerun `--n 10 --rounds 2` → see `llm_exp/results_v2/`.
+
 Full numbers: [`results/table_llm_summary.csv`](results/table_llm_summary.csv). Figures: `results/fig_llm_*.png`.
 
 ## Outputs

@@ -54,16 +54,19 @@ class VLLMClient:
     def complete(self, system: str, user: str, seed: int | None = None) -> LLMResponse:
         seed = seed if seed is not None else self.config.seed
         t0 = time.perf_counter()
-        resp = self._client.chat.completions.create(
-            model=self.config.model,
-            messages=[
+        kwargs: dict = {
+            "model": self.config.model,
+            "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
-            seed=seed,
-        )
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+            "seed": seed,
+        }
+        if self.config.use_json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+        resp = self._client.chat.completions.create(**kwargs)
         elapsed = (time.perf_counter() - t0) * 1000
         choice = resp.choices[0].message.content or ""
         usage = resp.usage
