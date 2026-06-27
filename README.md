@@ -269,7 +269,42 @@ Offline run (`results_steering_smoke/`, mock LLM, quick mode):
 | R1–R5 (LLM) | ~267 | 0.54–1.0 |
 | R6 (n=25) | 257.76 | 0.69 |
 
-R0 confirms the numeric coordinator works; LLM rows reflect the mock’s identical schedule, not real Qwen behavior. Use **`results_steering/`** for live model numbers.
+R0 confirms the numeric coordinator works; LLM rows reflect the mock’s identical schedule, not real Qwen behavior.
+
+#### Live steering results (qwen-analysis)
+
+Verified **2026-06-27** with:
+
+```bash
+python llm_exp/run_steering_experiments.py --quick --runs all --output llm_exp/results_steering
+```
+
+**Run settings:** quick mode (δ=60 min → E=24), 8 planning rounds per run, vLLM model **`qwen-analysis`**, total wall time ≈ **19 min**. JSON parse success **100%** on all LLM runs.
+
+##### Tracking error (final L₂ %, lower is better)
+
+| Run | Persona | Guardrail | Feedback | n | tracking_pct | guardrail_mod_rate |
+|-----|---------|-----------|----------|--:|-------------:|-------------------:|
+| **R0** | cooperative (PGA) | none | none | 10 | **3.19** | 0.0 |
+| R1 | cooperative | floor_only | none | 10 | 290.83 | 0.84 |
+| R2 | aggressive | floor_only | none | 10 | 290.71 | 0.88 |
+| R3 | aggressive | attractor_seek | gradient | 10 | 264.44 | 0.55 |
+| **R4** | mission_critical | hybrid_band | credit+gradient | 10 | **195.31** | 0.99 |
+| R5 | aggressive | attractor_seek | full | 10 | 458.78 | 0.58 |
+| R6 | aggressive | attractor_seek | full | 25 | 294.15 | 0.60 |
+
+Full table and figures: [`llm_exp/results_steering/`](llm_exp/results_steering/).
+
+##### Takeaways
+
+- **Numeric PGA (R0)** still wins decisively at **3.19%** tracking — the LLM gap remains large.
+- **Best LLM run: R4** (mission-critical persona + hybrid band + credit/gradient feedback) at **195%** — ~33% better than R1/R2 (~291%), but far from the v1 target of **< 50%**.
+- **Persona alone (R2 vs R1)** did not help; aggressive and cooperative prompts performed similarly.
+- **Attractor seek + gradient hints (R3)** improved modestly over floor-only (264% vs 291%).
+- **Full feedback stack (R5)** hurt badly (**459%**) — slashing + attractor seek can destabilize coordination.
+- **Scale-up (R6, n=25)** did not improve on R5; tracking stayed ~294%.
+
+The v1 success criterion (any LLM run **< 50%** at n=10) was **not met**. R4 is the most promising configuration for follow-up sweeps (floor fraction, temperature, more rounds).
 
 #### Steering code layout
 
