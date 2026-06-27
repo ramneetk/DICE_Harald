@@ -1,0 +1,8 @@
+run_id,persona,guardrail_mode,feedback_mode,n,tracking_pct,iterations,converged,parse_success_rate,guardrail_mod_rate,mean_llm_ms,wall_time_s,use_baseline,model
+R0,cooperative,none,none,10,3.19,8,False,1.0,0.0,0.0,0.0,True,qwen-analysis
+R1,cooperative,floor_only,none,10,290.83,8,False,1.0,0.838,1823.53,146.6,False,qwen-analysis
+R2,aggressive,floor_only,none,10,290.71,8,False,1.0,0.875,1876.81,150.9,False,qwen-analysis
+R3,aggressive,attractor_seek,gradient_only,10,264.44,8,False,1.0,0.55,1909.83,153.5,False,qwen-analysis
+R4,mission_critical,hybrid_band,credit_gradient,10,195.31,8,False,1.0,0.988,1776.28,143.1,False,qwen-analysis
+R5,aggressive,attractor_seek,full,10,458.78,8,False,1.0,0.575,2392.55,192.1,False,qwen-analysis
+R6,aggressive,attractor_seek,full,25,294.15,8,False,1.0,0.595,1792.33,360.4,False,qwen-analysis
